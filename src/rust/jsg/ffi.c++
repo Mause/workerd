@@ -54,7 +54,9 @@ namespace workerd::rust::jsg {
     return data[index];                                                                            \
   }
 
-// =============================================================================
+// BackingStore — the size_t handle is the address of a heap-allocated
+// std::shared_ptr<v8::BackingStore> allocated with `new`.
+using BackingStorePtr = std::shared_ptr<v8::BackingStore>;
 
 // Wrappable implementation - calls into Rust via CXX bridge
 Wrappable::~Wrappable() {
@@ -221,6 +223,10 @@ bool local_is_function(const Local& val) {
   return local_as_ref_from_ffi<v8::Value>(val)->IsFunction();
 }
 
+bool local_is_shared_array_buffer(const Local& val) {
+  return local_as_ref_from_ffi<v8::Value>(val)->IsSharedArrayBuffer();
+}
+
 ::rust::String local_type_of(Isolate* isolate, const Local& val) {
   auto v8Val = local_as_ref_from_ffi<v8::Value>(val);
   v8::Local<v8::String> typeStr = v8Val->TypeOf(isolate);
@@ -291,6 +297,168 @@ void local_array_set(Isolate* isolate, Local& array, uint32_t index, Local value
   auto context = isolate->GetCurrentContext();
   auto v8Array = local_as_ref_from_ffi<v8::Array>(array);
   ::workerd::jsg::check(v8Array->Set(context, index, local_from_ffi<v8::Value>(kj::mv(value))));
+}
+
+// Local<ArrayBuffer>
+Local local_new_array_buffer(Isolate* isolate, const uint8_t* data, size_t length) {
+  auto backingStore = v8::ArrayBuffer::NewBackingStore(isolate, length);
+  if (length > 0) {
+    memcpy(backingStore->Data(), data, length);
+  }
+  return to_ffi(v8::ArrayBuffer::New(isolate, std::move(backingStore)));
+}
+
+Local local_new_array_buffer_empty(Isolate* isolate, size_t byte_length) {
+  auto backingStore = v8::ArrayBuffer::NewBackingStore(isolate, byte_length);
+  return to_ffi(v8::ArrayBuffer::New(isolate, std::move(backingStore)));
+}
+
+Local array_buffer_new_with_mode(
+    Isolate* isolate, size_t byte_length, BackingStoreInitializationMode mode) {
+  return to_ffi(v8::ArrayBuffer::New(
+      isolate, byte_length, static_cast<v8::BackingStoreInitializationMode>(mode)));
+}
+
+kj::Maybe<Local> array_buffer_maybe_new(
+    Isolate* isolate, size_t byte_length, BackingStoreInitializationMode mode) {
+  auto maybe = v8::ArrayBuffer::MaybeNew(
+      isolate, byte_length, static_cast<v8::BackingStoreInitializationMode>(mode));
+  if (maybe.IsEmpty()) return kj::none;
+  return to_ffi(maybe.ToLocalChecked());
+}
+
+Local array_buffer_from_backing_store(Isolate* isolate, size_t ptr) {
+  return to_ffi(v8::ArrayBuffer::New(isolate, *reinterpret_cast<BackingStorePtr*>(ptr)));
+}
+
+size_t local_array_buffer_byte_length(Isolate* isolate, const Local& buffer) {
+  return local_as_ref_from_ffi<v8::ArrayBuffer>(buffer)->ByteLength();
+}
+
+uint8_t* local_array_buffer_data(Isolate* isolate, const Local& buffer) {
+  return static_cast<uint8_t*>(local_as_ref_from_ffi<v8::ArrayBuffer>(buffer)->Data());
+}
+
+size_t local_array_buffer_get_backing_store(Isolate* isolate, const Local& buffer) {
+  return reinterpret_cast<size_t>(
+      new BackingStorePtr(local_as_ref_from_ffi<v8::ArrayBuffer>(buffer)->GetBackingStore()));
+}
+
+// Local<ArrayBufferView>
+size_t local_array_buffer_view_byte_offset(Isolate* isolate, const Local& view) {
+  return local_as_ref_from_ffi<v8::ArrayBufferView>(view)->ByteOffset();
+}
+
+size_t local_array_buffer_view_byte_length(Isolate* isolate, const Local& view) {
+  return local_as_ref_from_ffi<v8::ArrayBufferView>(view)->ByteLength();
+}
+
+uint8_t* local_array_buffer_view_buffer_data(Isolate* isolate, const Local& view) {
+  return static_cast<uint8_t*>(local_as_ref_from_ffi<v8::ArrayBufferView>(view)->Buffer()->Data());
+}
+
+Local local_array_buffer_view_get_buffer(Isolate* isolate, const Local& view) {
+  return to_ffi(local_as_ref_from_ffi<v8::ArrayBufferView>(view)->Buffer());
+}
+
+// Local<SharedArrayBuffer>
+Local local_new_shared_array_buffer(Isolate* isolate, const uint8_t* data, size_t length) {
+  auto backingStore = v8::SharedArrayBuffer::NewBackingStore(isolate, length);
+  if (length > 0) {
+    memcpy(backingStore->Data(), data, length);
+  }
+  return to_ffi(v8::SharedArrayBuffer::New(isolate, std::move(backingStore)));
+}
+
+Local local_new_shared_array_buffer_empty(Isolate* isolate, size_t byte_length) {
+  auto backingStore = v8::SharedArrayBuffer::NewBackingStore(isolate, byte_length);
+  return to_ffi(v8::SharedArrayBuffer::New(isolate, std::move(backingStore)));
+}
+
+size_t local_shared_array_buffer_byte_length(Isolate* isolate, const Local& buffer) {
+  return local_as_ref_from_ffi<v8::SharedArrayBuffer>(buffer)->ByteLength();
+}
+
+uint8_t* local_shared_array_buffer_data(Isolate* isolate, const Local& buffer) {
+  return static_cast<uint8_t*>(local_as_ref_from_ffi<v8::SharedArrayBuffer>(buffer)->Data());
+}
+
+size_t local_shared_array_buffer_get_backing_store(Isolate* isolate, const Local& buffer) {
+  return reinterpret_cast<size_t>(
+      new BackingStorePtr(local_as_ref_from_ffi<v8::SharedArrayBuffer>(buffer)->GetBackingStore()));
+}
+
+// BackingStore
+size_t backing_store_new_resizable(size_t byte_length, size_t max_byte_length) {
+  return reinterpret_cast<size_t>(
+      new BackingStorePtr(v8::ArrayBuffer::NewResizableBackingStore(byte_length, max_byte_length)));
+}
+
+void backing_store_drop(size_t ptr) {
+  delete reinterpret_cast<BackingStorePtr*>(ptr);
+}
+
+uint8_t* backing_store_data(size_t ptr) {
+  return static_cast<uint8_t*>(reinterpret_cast<BackingStorePtr*>(ptr)->get()->Data());
+}
+
+size_t backing_store_byte_length(size_t ptr) {
+  return reinterpret_cast<BackingStorePtr*>(ptr)->get()->ByteLength();
+}
+
+size_t backing_store_max_byte_length(size_t ptr) {
+  return reinterpret_cast<BackingStorePtr*>(ptr)->get()->MaxByteLength();
+}
+
+bool backing_store_is_shared(size_t ptr) {
+  return reinterpret_cast<BackingStorePtr*>(ptr)->get()->IsShared();
+}
+
+bool backing_store_is_resizable_by_user_javascript(size_t ptr) {
+  return reinterpret_cast<BackingStorePtr*>(ptr)->get()->IsResizableByUserJavaScript();
+}
+
+// Unwrappers
+::rust::Vec<uint8_t> unwrap_array_buffer(Isolate* isolate, Local value) {
+  auto v8Val = local_from_ffi<v8::Value>(kj::mv(value));
+  KJ_REQUIRE(v8Val->IsArrayBuffer());
+  auto ab = v8Val.As<v8::ArrayBuffer>();
+  ::rust::Vec<uint8_t> result;
+  auto byteLen = ab->ByteLength();
+  result.reserve(byteLen);
+  auto* ptr = static_cast<uint8_t*>(ab->Data());
+  for (size_t i = 0; i < byteLen; i++) {
+    result.push_back(ptr[i]);
+  }
+  return result;
+}
+
+::rust::Vec<uint8_t> unwrap_array_buffer_view(Isolate* isolate, Local value) {
+  auto v8Val = local_from_ffi<v8::Value>(kj::mv(value));
+  KJ_REQUIRE(v8Val->IsArrayBufferView());
+  auto view = v8Val.As<v8::ArrayBufferView>();
+  ::rust::Vec<uint8_t> result;
+  auto byteLen = view->ByteLength();
+  result.reserve(byteLen);
+  auto* ptr = static_cast<uint8_t*>(view->Buffer()->Data()) + view->ByteOffset();
+  for (size_t i = 0; i < byteLen; i++) {
+    result.push_back(ptr[i]);
+  }
+  return result;
+}
+
+::rust::Vec<uint8_t> unwrap_shared_array_buffer(Isolate* isolate, Local value) {
+  auto v8Val = local_from_ffi<v8::Value>(kj::mv(value));
+  KJ_REQUIRE(v8Val->IsSharedArrayBuffer());
+  auto sab = v8Val.As<v8::SharedArrayBuffer>();
+  ::rust::Vec<uint8_t> result;
+  auto byteLen = sab->ByteLength();
+  result.reserve(byteLen);
+  auto* ptr = static_cast<uint8_t*>(sab->Data());
+  for (size_t i = 0; i < byteLen; i++) {
+    result.push_back(ptr[i]);
+  }
+  return result;
 }
 
 // TypedArray creation functions
