@@ -57,5 +57,5 @@ android_ndk_repository_extension = use_extension(
 )
 use_repo(android_ndk_repository_extension, "androidndk")
 
-bazel_dep(name = "rules_android", version = "0.6.0")
+bazel_dep(name = "rules_android", version = "0.7.1")
 bazel_dep(name = "rules_go", version = "0.60.0")
