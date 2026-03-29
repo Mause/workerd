@@ -126,6 +126,7 @@ cc_library(
         "CRC32_ARMV8_CRC32",
         "ZLIB_IMPLEMENTATION",
     ] + select({
+        "@platforms//os:android": ["ARMV8_OS_ANDROID"],
         "@platforms//os:linux": ["ARMV8_OS_LINUX"],
         "@platforms//os:macos": ["ARMV8_OS_MACOS"],
         "@platforms//os:windows": ["ARMV8_OS_WINDOWS"],
