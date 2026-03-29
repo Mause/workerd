@@ -11,8 +11,8 @@
 #include <workerd/io/features.h>
 #include <workerd/io/io-context.h>
 
-#include <kj/filesystem.h>
 #include <capnp/compat/byte-stream.h>
+#include <kj/filesystem.h>
 
 #include <cmath>
 
@@ -495,8 +495,8 @@ jsg::Promise<jsg::Ref<ExecProcess>> Container::exec(
         }
         // user sets "pipe"... they want to consume the API with the stdin WritableStream
         KJ_CASE_ONEOF(mode, kj::String) {
-          JSG_REQUIRE(mode == "pipe", TypeError,
-              "stdin must be a ReadableStream or the string \"pipe\".");
+          JSG_REQUIRE(
+              mode == "pipe", TypeError, "stdin must be a ReadableStream or the string \"pipe\".");
           auto sink = newSystemStream(kj::mv(stdinWriter), StreamEncoding::IDENTITY, ioContext);
           auto writable = js.alloc<WritableStream>(ioContext, kj::mv(sink),
               ioContext.getMetrics().tryCreateWritableByteStreamObserver());
