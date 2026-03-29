@@ -8,6 +8,7 @@ RUST_TARGET_TRIPLES = [
     "x86_64-apple-darwin",
     # Add support for macOS rosetta
     "aarch64-unknown-linux-gnu",
+    "aarch64-linux-android",
 ]
 
 # rules_rust
