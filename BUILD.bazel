@@ -64,6 +64,13 @@ platform(
 
 # Used for cross-compilation
 platform(
+    name = "android_arm64",
+    constraint_values = [
+        "@platforms//os:android",
+        "@platforms//cpu:arm64",
+    ],
+)
+platform(
     name = "macOS_x86",
     constraint_values = [
         "@platforms//os:macos",
