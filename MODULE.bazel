@@ -46,3 +46,16 @@ use_repo(compat, "cc_compatibility_proxy")
 
 cc_configure = use_extension("@rules_cc//cc:extensions.bzl", "cc_configure_extension")
 use_repo(cc_configure, "local_config_cc")
+
+# Configure the Android NDK toolchain for NDK builds. Don't register that here so it's not required
+# for builds that don't need it. Those configs can register those in --extra_toolchains.
+bazel_dep(name = "rules_android_ndk", version = "0.1.5")
+
+android_ndk_repository_extension = use_extension(
+    "@rules_android_ndk//:extension.bzl",
+    "android_ndk_repository_extension",
+)
+use_repo(android_ndk_repository_extension, "androidndk")
+
+bazel_dep(name = "rules_android", version = "0.7.1")
+bazel_dep(name = "rules_go", version = "0.60.0")

@@ -45,6 +45,14 @@ selects.config_setting_group(
 )
 
 selects.config_setting_group(
+    name = "arm64_android",
+    match_all = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:android",
+    ],
+)
+
+selects.config_setting_group(
     name = "arm64_macos",
     match_all = [
         "@platforms//cpu:aarch64",
@@ -118,6 +126,7 @@ cc_library(
         "CRC32_ARMV8_CRC32",
         "ZLIB_IMPLEMENTATION",
     ] + select({
+        "@platforms//os:android": ["ARMV8_OS_ANDROID"],
         "@platforms//os:linux": ["ARMV8_OS_LINUX"],
         "@platforms//os:macos": ["ARMV8_OS_MACOS"],
         "@platforms//os:windows": ["ARMV8_OS_WINDOWS"],
@@ -247,6 +256,7 @@ cc_library(
         ":x86_macos": ["X86_NOT_WINDOWS"],
         ":x86_windows": ["X86_WINDOWS"],
         ":arm64_linux": ["ARMV8_OS_LINUX"],
+        "arm64_android": ["ARMV8_OS_ANDROID"],
         "arm64_macos": ["ARMV8_OS_MACOS"],
         "arm64_windows": ["ARMV8_OS_WINDOWS"],
         "//conditions:default": [],
